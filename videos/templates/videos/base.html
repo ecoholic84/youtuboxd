@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}YouTuBoxd - YouTube Saved Videos{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #FF0000;
+            --secondary-color: #282828;
+            --light-color: #F5F5F5;
+            --dark-color: #121212;
+            --sidebar-width: 280px;
+        }
+        
+        body {
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            font-family: 'Roboto', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .navbar {
+            background-color: var(--secondary-color);
+            z-index: 1030;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #CC0000;
+            border-color: #CC0000;
+        }
+        
+        .card {
+            background-color: var(--secondary-color);
+            color: var(--light-color);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .video-thumbnail {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .video-thumbnail img {
+            width: 100%;
+            transition: transform 0.3s;
+        }
+        
+        .video-thumbnail:hover img {
+            transform: scale(1.05);
+        }
+        
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+        
+        .video-thumbnail:hover .video-overlay {
+            opacity: 1;
+        }
+        
+        .tag-badge {
+            background-color: var(--primary-color);
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .footer {
+            background-color: var(--secondary-color);
+            color: var(--light-color);
+            padding: 20px 0;
+            margin-top: 50px;
+        }
+        
+        /* Category styling */
+        .category-section {
+            position: relative;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .category-section:last-child {
+            border-bottom: none;
+        }
+        
+        .category-section h2 {
+            font-weight: 600;
+        }
+        
+        .category-section .card {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Custom scrollbar for horizontal scroll */
+        .horizontal-scroll {
+            display: flex;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--dark-color);
+            padding-bottom: 15px;
+        }
+        
+        .horizontal-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+        
+        .horizontal-scroll::-webkit-scrollbar-track {
+            background: var(--dark-color);
+        }
+        
+        .horizontal-scroll::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+        
+        .horizontal-scroll .col {
+            min-width: 300px;
+            margin-right: 15px;
+        }
+        
+        /* Sidebar styles */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 56px; /* Navbar height */
+            bottom: 0;
+            width: var(--sidebar-width);
+            background-color: var(--secondary-color);
+            padding: 20px 0;
+            overflow-y: auto;
+            z-index: 1020;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-header {
+            padding: 0 20px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+        }
+        
+        .cursor-pointer {
+            cursor: pointer;
+        }
+        
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            color: var(--light-color);
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        
+        .sidebar-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--light-color);
+        }
+        
+        .sidebar-link.active {
+            background-color: rgba(255, 0, 0, 0.2);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .sidebar-icon {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .content-wrapper {
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+        }
+        
+        .content-wrapper-full {
+            margin-left: 0;
+        }
+        
+        .sidebar-toggle {
+            cursor: pointer;
+            margin-right: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .content-wrapper {
+                margin-left: 0;
+            }
+        }
+        
+        /* Collapsible sections */
+        #playlistsContainer:not(.show),
+        #tagsContainer:not(.show) {
+            display: none;
+        }
+        
+        .playlist-toggle-icon,
+        .tags-toggle-icon {
+            transition: transform 0.3s;
+        }
+        
+        /* Transition for collapsible sections */
+        #playlistsContainer,
+        #tagsContainer {
+            transition: height 0.3s ease;
+            overflow: hidden;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-0 sticky-top">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <span class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars text-light"></i>
+                </span>
+                <a class="navbar-brand" href="{% url 'dashboard' %}">
+                    <i class="fab fa-youtube text-danger me-2"></i>YouTuBoxd
+                </a>
+            </div>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard' %}?sync=true">
+                            <i class="fas fa-sync-alt me-1"></i>Sync Videos
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>{{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Login</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Layout with Sidebar -->
+    {% if user.is_authenticated %}
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h5>YouTuBoxd</h5>
+        </div>
+        <div class="sidebar-content">
+            <!-- Dashboard -->
+            <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.path == '/' %}active{% endif %}">
+                <span class="sidebar-icon"><i class="fas fa-home"></i></span>
+                Dashboard
+            </a>
+            
+            <!-- Liked Videos -->
+            <a href="{% url 'video_category' 'liked' %}" class="sidebar-link {% if request.path == '/category/liked/' %}active{% endif %}">
+                <span class="sidebar-icon"><i class="fas fa-heart"></i></span>
+                Liked Videos
+            </a>
+            
+            <!-- Saved Videos -->
+            <a href="{% url 'video_category' 'saved' %}" class="sidebar-link {% if request.path == '/category/saved/' %}active{% endif %}">
+                <span class="sidebar-icon"><i class="fas fa-bookmark"></i></span>
+                Saved Videos
+            </a>
+            
+            <!-- All Playlists -->
+            <div class="sidebar-header mt-3 d-flex justify-content-between align-items-center cursor-pointer" id="playlistsToggle">
+                <h6 class="mb-0">Your Playlists</h6>
+                <i class="fas fa-chevron-down playlist-toggle-icon"></i>
+            </div>
+            
+            <div id="playlistsContainer" class="show">
+                {% if user_playlists %}
+                    {% for playlist in user_playlists %}
+                    {% if playlist.playlist_id != 'LL' and playlist.playlist_id != 'WL' %}
+                    <a href="{% url 'playlist_videos' playlist.playlist_id %}" class="sidebar-link {% if request.path == '/playlist/'|add:playlist.playlist_id|add:'/' %}active{% endif %}">
+                        <span class="sidebar-icon"><i class="fas fa-list"></i></span>
+                        {{ playlist.title|truncatechars:22 }}
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="px-4 py-2 text-muted small">
+                        <em>No playlists found</em>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- User tags -->
+            {% if user_tags %}
+                <div class="sidebar-header mt-3 d-flex justify-content-between align-items-center cursor-pointer" id="tagsToggle">
+                    <h6 class="mb-0">Your Tags</h6>
+                    <i class="fas fa-chevron-down tags-toggle-icon"></i>
+                </div>
+                <div id="tagsContainer" class="show">
+                    {% for tag in user_tags %}
+                    <a href="{% url 'tag_videos' tag.id %}" class="sidebar-link {% if request.path == '/tag/'|add:tag.id|add:'/videos/' %}active{% endif %}">
+                        <span class="sidebar-icon"><i class="fas fa-tag"></i></span>
+                        {{ tag.name|truncatechars:22 }}
+                    </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="{% if user.is_authenticated %}content-wrapper{% endif %}" id="content">
+        <!-- Main Content -->
+        <div class="container py-4">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer mt-auto py-3">
+            <div class="container text-center">
+                <p>YouTuBoxd - Sync and manage your YouTube saved videos</p>
+                <p class="text-muted">Using YouTube Data API v3</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Auth Utils -->
+    {% load static %}
+    <script src="{% static 'videos/js/auth.js' %}"></script>
+    
+    <!-- Sidebar Toggle Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            
+            // Check for saved sidebar state
+            const sidebarState = localStorage.getItem('youtuboxd_sidebar');
+            if (sidebarState === 'hidden') {
+                sidebar.classList.add('sidebar-hidden');
+                content.classList.add('content-wrapper-full');
+            }
+            
+            // Toggle sidebar on click
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('sidebar-hidden');
+                content.classList.toggle('content-wrapper-full');
+                
+                // Save sidebar state
+                if (sidebar.classList.contains('sidebar-hidden')) {
+                    localStorage.setItem('youtuboxd_sidebar', 'hidden');
+                } else {
+                    localStorage.setItem('youtuboxd_sidebar', 'visible');
+                }
+            });
+            
+            // Handle mobile view
+            if (window.innerWidth <= 768) {
+                sidebar.classList.add('sidebar-hidden');
+                content.classList.add('content-wrapper-full');
+            }
+            
+            // Handle collapsible sections
+            function setupToggle(toggleId, containerId, iconClass, storageKey) {
+                const toggle = document.getElementById(toggleId);
+                const container = document.getElementById(containerId);
+                const icon = document.querySelector(iconClass);
+                
+                if (!toggle || !container || !icon) return;
+                
+                // Check for saved state
+                const savedState = localStorage.getItem(storageKey);
+                if (savedState === 'collapsed') {
+                    container.classList.remove('show');
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-right');
+                }
+                
+                toggle.addEventListener('click', function() {
+                    container.classList.toggle('show');
+                    if (container.classList.contains('show')) {
+                        icon.classList.remove('fa-chevron-right');
+                        icon.classList.add('fa-chevron-down');
+                        localStorage.setItem(storageKey, 'expanded');
+                    } else {
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-right');
+                        localStorage.setItem(storageKey, 'collapsed');
+                    }
+                });
+            }
+            
+            // Setup playlist toggle
+            setupToggle('playlistsToggle', 'playlistsContainer', '.playlist-toggle-icon', 'youtuboxd_playlists');
+            
+            // Setup tags toggle
+            setupToggle('tagsToggle', 'tagsContainer', '.tags-toggle-icon', 'youtuboxd_tags');
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

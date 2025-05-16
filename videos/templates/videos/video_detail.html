@@ -1,0 +1,234 @@
+{% extends 'videos/base.html' %}
+
+{% block title %}{{ video.title }} | YouTuBoxd{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-light mb-3">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+        <h1 class="mb-0">{{ video.title }}</h1>
+        <p class="text-muted">{{ video.channel_title }}</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="ratio ratio-16x9">
+                <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" title="{{ video.title }}" allowfullscreen></iframe>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Video Details</h5>
+                    <div>
+                        <button id="refreshStatusBtn" class="btn btn-sm btn-outline-info me-2" title="Refresh YouTube status">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh Status
+                        </button>
+                        <button id="syncSavedBtn" class="btn btn-sm btn-outline-primary me-2" title="Sync saved videos">
+                            <i class="fas fa-bookmark me-1"></i>Sync Saved
+                        </button>
+                        <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="btn btn-sm btn-danger">
+                            <i class="fab fa-youtube me-1"></i> Watch on YouTube
+                        </a>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <span class="badge bg-{{ video.is_liked|yesno:'danger,secondary' }} me-2">
+                        <i class="fas fa-heart me-1"></i>{{ video.is_liked|yesno:'Liked,Not Liked' }}
+                    </span>
+                    {% if video.is_saved %}
+                    <span class="badge bg-primary me-2">
+                        <i class="fas fa-bookmark me-1"></i>Saved
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="card-text">{{ video.description }}</p>
+                <p class="text-muted small">Published: {{ video.published_at|date:"F d, Y" }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">Custom Description</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <textarea id="customDescription" class="form-control bg-secondary text-light" rows="5">{{ video.custom_description }}</textarea>
+                </div>
+                <button id="saveDescriptionBtn" class="btn btn-primary w-100">
+                    <i class="fas fa-save me-1"></i> Save Description
+                </button>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">Manage Tags</div>
+            <div class="card-body">
+                <div class="current-tags mb-3">
+                    <p class="card-text mb-2">Current Tags:</p>
+                    <div id="tagContainer">
+                        {% for video_tag in video.video_tags.all %}
+                        <span class="badge tag-badge mb-1 me-1">
+                            {{ video_tag.tag.name }}
+                            <i class="fas fa-times ms-1 remove-tag" data-tag-id="{{ video_tag.tag.id }}"></i>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="add-tags mb-3">
+                    <p class="card-text mb-2">Add Tags:</p>
+                    <select id="tagSelect" class="form-select bg-secondary text-light">
+                        <option value="">Select a tag to add</option>
+                        {% for tag in user_tags %}
+                            {% if tag.id not in video_tags %}
+                            <option value="{{ tag.id }}">{{ tag.name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button id="addTagBtn" class="btn btn-outline-light w-100">
+                    <i class="fas fa-plus me-1"></i> Add Selected Tag
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Save custom description
+        $('#saveDescriptionBtn').click(function() {
+            var description = $('#customDescription').val();
+            $.ajax({
+                url: '{% url "update_video_description" video.id %}',
+                type: 'PATCH',
+                data: JSON.stringify({ custom_description: description }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function() {
+                    alert('Description saved successfully!');
+                },
+                error: function() {
+                    alert('Error saving description');
+                }
+            });
+        });
+        
+        // Add tag to video
+        $('#addTagBtn').click(function() {
+            var tagId = $('#tagSelect').val();
+            if (tagId) {
+                $.ajax({
+                    url: '{% url "add_tag_to_video" %}',
+                    type: 'POST',
+                    data: JSON.stringify({ 
+                        video_id: '{{ video.id }}', 
+                        tag_id: tagId 
+                    }),
+                    contentType: 'application/json',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    success: function() {
+                        location.reload();
+                    },
+                    error: function() {
+                        alert('Error adding tag');
+                    }
+                });
+            }
+        });
+        
+        // Remove tag from video
+        $('.remove-tag').click(function() {
+            var tagId = $(this).data('tag-id');
+            $.ajax({
+                url: '{% url "remove_tag_from_video" %}',
+                type: 'POST',
+                data: JSON.stringify({ 
+                    video_id: '{{ video.id }}', 
+                    tag_id: tagId 
+                }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function() {
+                    location.reload();
+                },
+                error: function() {
+                    alert('Error removing tag');
+                }
+            });
+        });
+        
+        // Refresh video status
+        $('#refreshStatusBtn').click(function() {
+            // Disable button and show loading state
+            var $btn = $(this);
+            var originalText = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...');
+            
+            $.ajax({
+                url: '{% url "sync_videos" %}',
+                type: 'POST',
+                data: JSON.stringify({ sync_type: 'liked' }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Reload the page to show updated status
+                    location.reload();
+                },
+                error: function(error) {
+                    // Show error message
+                    var errorMsg = error.responseJSON ? error.responseJSON.message : 'Failed to refresh status';
+                    alert('Error: ' + errorMsg);
+                    
+                    // Reset button state
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            });
+        });
+        
+        // Sync saved videos
+        $('#syncSavedBtn').click(function() {
+            // Disable button and show loading state
+            var $btn = $(this);
+            var originalText = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Syncing...');
+            
+            $.ajax({
+                url: '{% url "sync_videos" %}',
+                type: 'POST',
+                data: JSON.stringify({ sync_type: 'saved' }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Reload the page to show updated status
+                    location.reload();
+                },
+                error: function(error) {
+                    // Show error message
+                    var errorMsg = error.responseJSON ? error.responseJSON.message : 'Failed to sync saved videos';
+                    alert('Error: ' + errorMsg);
+                    
+                    // Reset button state
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

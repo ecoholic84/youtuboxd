@@ -1,0 +1,44 @@
+{% extends 'videos/base.html' %}
+
+{% block title %}Login | YouTuBoxd{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h2 class="card-title mb-4">Welcome to YouTuBoxd</h2>
+                <p class="card-text mb-4">Sync your YouTube "Watch Later" videos and organize them with tags.</p>
+                
+                {% if error %}
+                <div class="alert alert-danger mb-4">
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                <a href="{{ auth_url }}" class="btn btn-danger btn-lg">
+                    <i class="fab fa-google me-2"></i> Sign in with Google
+                </a>
+                
+                <div class="mt-4">
+                    <p class="card-text text-muted">
+                        We'll only ask for read-only access to your YouTube account.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <h4 class="card-title">Features</h4>
+                <ul class="list-group list-group-flush bg-transparent">
+                    <li class="list-group-item bg-transparent">Automatically sync "Watch Later" videos</li>
+                    <li class="list-group-item bg-transparent">Add custom tags to organize videos</li>
+                    <li class="list-group-item bg-transparent">Add personal notes to each video</li>
+                    <li class="list-group-item bg-transparent">Secure and private access to your data</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,17 @@
+# Python generated files 
+__pycache__/ 
+*.py[cod] 
+*$py.class 
+  
+# Environment variables 
+.env 
+  
+# Virtual environments 
+venv/ 
+env/ 
+  
+# Database 
+db.sqlite3 
+  
+# Static files 
+staticfiles/ 

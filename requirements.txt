@@ -1,0 +1,9 @@
+django
+psycopg2-binary
+requests
+google-auth
+google-auth-oauthlib
+python-dotenv
+whitenoise
+djangorestframework
+django-cors-headers

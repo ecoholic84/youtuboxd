@@ -1,0 +1,79 @@
+{% extends 'videos/base.html' %}
+
+{% block title %}{{ title }} | YouTuBoxd{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-light mb-3">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+        <h1 class="mb-0">
+            <i class="fas {{ icon }} me-2"></i>{{ title }}
+        </h1>
+    </div>
+</div>
+
+{% if videos %}
+<div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+    {% for video in videos %}
+    <div class="col">
+        <div class="card h-100">
+            <div class="video-thumbnail">
+                <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" class="card-img-top">
+                <div class="video-overlay">
+                    <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="btn btn-danger">
+                        <i class="fab fa-youtube me-1"></i> Watch
+                    </a>
+                </div>
+                <div class="video-status-badges" style="position: absolute; top: 10px; right: 10px;">
+                    {% if video.is_liked %}
+                    <span class="badge bg-danger" title="Liked Video"><i class="fas fa-heart"></i></span>
+                    {% endif %}
+                    {% if video.is_saved %}
+                    <span class="badge bg-primary" title="Saved Video"><i class="fas fa-bookmark"></i></span>
+                    {% endif %}
+                    {% if video.playlist_id and video.playlist_id != 'LL' and video.playlist_id != 'WL' %}
+                    <span class="badge bg-success" title="In Playlist: {{ video.playlist_name }}"><i class="fas fa-list"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">{{ video.title|truncatechars:60 }}</h5>
+                <p class="card-text text-muted small">{{ video.channel_title }}</p>
+                
+                <div class="tags mb-2">
+                    {% for video_tag in video.video_tags.all %}
+                    <span class="badge tag-badge">{{ video_tag.tag.name }}</span>
+                    {% endfor %}
+                </div>
+                
+                {% if video.custom_description %}
+                <p class="card-text small">{{ video.custom_description|truncatechars:100 }}</p>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between mt-3">
+                    <a href="{% url 'video_detail' video.id %}" class="btn btn-sm btn-outline-light">
+                        <i class="fas fa-edit me-1"></i> Edit
+                    </a>
+                    <small class="text-muted">
+                        {{ video.published_at|date:"M d, Y" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <h3>No videos found</h3>
+        <p class="text-muted">No videos are available in this category.</p>
+        <a href="{% url 'dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-home me-1"></i> Return to Dashboard
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 
