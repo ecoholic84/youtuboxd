@@ -9,18 +9,20 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.urls import reverse
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 import datetime
 import logging
 import requests
 from django.db import models
+from django.db.models import Q
 
 from .models import UserToken, Video, Tag, VideoTag, Playlist
 from .serializers import (
     VideoListSerializer, VideoDetailSerializer, VideoUpdateSerializer,
-    TagSerializer, TagCreateSerializer, VideoTagCreateSerializer
+    TagSerializer, TagCreateSerializer, VideoTagCreateSerializer,
+    VideoSerializer
 )
 from .youtube_api import YouTubeAPI
 from .drive_service import GoogleDriveService
@@ -38,114 +40,119 @@ def login_view(request):
 
 @login_required
 def dashboard_view(request):
-    """Render the dashboard with user's videos in different categories"""
-    # Check for drive operations
-    if 'load_from_drive' in request.GET:
-        drive_service = GoogleDriveService(user=request.user)
-        success = drive_service.load_tags_from_drive()
-        if success:
-            return redirect('dashboard')
+    """Render the dashboard with user's videos and search functionality"""
+    # Get search query
+    query = request.GET.get('q', '').strip()
+    videos = Video.objects.filter(user=request.user)
+    
+    if query:
+        if query.startswith('tag:'):
+            # Search by tag
+            tag_name = query[4:].strip()
+            videos = videos.filter(tags__name__icontains=tag_name)
         else:
-            # Continue with dashboard view even if loading failed
-            pass
-            
-    # Sync videos if requested
-    if 'sync' in request.GET:
-        youtube_api = YouTubeAPI(user=request.user)
-        youtube_api.sync_videos_for_user()
-        return redirect('dashboard')
-        
+            # Search in title, description, and channel
+            videos = videos.filter(
+                Q(title__icontains=query) |
+                Q(description__icontains=query) |
+                Q(youtube_description__icontains=query) |
+                Q(channel_title__icontains=query)
+            ).distinct()
+    
     # Get user tags for sidebar
     user_tags = Tag.objects.filter(user=request.user).order_by('name')
     
     # Get user playlists for sidebar
     user_playlists = Playlist.objects.filter(user=request.user).order_by('title')
     
-    # Initialize YouTube API
-    youtube_api = YouTubeAPI(user=request.user)
-    
     # Get video categories
     video_categories = {}
     
-
-    
-    # Get liked videos (only if we don't have a playlist for them)
-    has_liked_playlist = Playlist.objects.filter(user=request.user, playlist_id='LL').exists()
-    if not has_liked_playlist:
-        liked_videos = Video.objects.filter(user=request.user, is_liked=True).order_by('-published_at')[:12]
-        if liked_videos.exists():
-            video_categories['Liked Videos'] = {
-                'videos': liked_videos,
-                'view_all_url': reverse('video_category', kwargs={'category': 'liked'}),
-                'empty_message': 'No liked videos found',
-                'icon': 'fa-heart'
+    if query:
+        # If searching, show results in a single category
+        if videos.exists():
+            video_categories['Search Results'] = {
+                'videos': videos.order_by('-published_at'),
+                'view_all_url': None,
+                'empty_message': f'No results found for "{query}"',
+                'icon': 'fa-search'
             }
-    
-    # Get saved videos (only if we don't have a playlist for them)
-    has_saved_playlist = Playlist.objects.filter(user=request.user, playlist_id='WL').exists()
-    if not has_saved_playlist:
-        # Get saved videos - all videos in playlists or marked as saved, except liked videos
-        saved_videos = Video.objects.filter(
-            user=request.user
-        ).filter(
-            models.Q(is_saved=True) | ~models.Q(playlist_id='')
-        ).exclude(
-            is_liked=True
-        ).order_by('-published_at')[:12]
+    else:
+        # Regular dashboard categories
+        # Get liked videos
+        has_liked_playlist = Playlist.objects.filter(user=request.user, playlist_id='LL').exists()
+        if not has_liked_playlist:
+            liked_videos = Video.objects.filter(user=request.user, is_liked=True).order_by('-published_at')[:12]
+            if liked_videos.exists():
+                video_categories['Liked Videos'] = {
+                    'videos': liked_videos,
+                    'view_all_url': reverse('video_category', kwargs={'category': 'liked'}),
+                    'empty_message': 'No liked videos found',
+                    'icon': 'fa-heart'
+                }
         
-        if saved_videos.exists():
-            video_categories['Saved Videos'] = {
-                'videos': saved_videos,
-                'view_all_url': reverse('video_category', kwargs={'category': 'saved'}),
-                'empty_message': 'No saved videos found',
-                'icon': 'fa-bookmark'
-            }
-    
-    # Get videos by tag (one row per tag, limited to top 3 tags with most videos)
-    tags_with_counts = Tag.objects.filter(user=request.user).annotate(
-        video_count=models.Count('tagged_videos')
-    ).order_by('-video_count')[:3]
-    
-    for tag in tags_with_counts:
-        tag_videos = Video.objects.filter(
-            user=request.user, 
-            video_tags__tag=tag
-        ).order_by('-published_at')[:12]
-        
-        if tag_videos.exists():
-            video_categories[f'Tagged: {tag.name}'] = {
-                'videos': tag_videos,
-                'view_all_url': reverse('tag_videos', kwargs={'tag_id': tag.id}),
-                'empty_message': f'No videos tagged with {tag.name}',
-                'icon': 'fa-tag'
-            }
-    
-    # Get videos from user playlists
-    for playlist in user_playlists:
-        # Skip Liked Videos and Watch Later if we're already showing them
-        if (playlist.playlist_id == 'LL' and 'Liked Videos' in video_categories) or \
-           (playlist.playlist_id == 'WL' and 'Saved Videos' in video_categories):
-            continue
+        # Get saved videos
+        has_saved_playlist = Playlist.objects.filter(user=request.user, playlist_id='WL').exists()
+        if not has_saved_playlist:
+            saved_videos = Video.objects.filter(
+                user=request.user
+            ).filter(
+                models.Q(is_saved=True) | ~models.Q(playlist_id='')
+            ).exclude(
+                is_liked=True
+            ).order_by('-published_at')[:12]
             
-        playlist_videos = Video.objects.filter(
-            user=request.user,
-            playlist_id=playlist.playlist_id
-        ).order_by('-published_at')[:12]
+            if saved_videos.exists():
+                video_categories['Saved Videos'] = {
+                    'videos': saved_videos,
+                    'view_all_url': reverse('video_category', kwargs={'category': 'saved'}),
+                    'empty_message': 'No saved videos found',
+                    'icon': 'fa-bookmark'
+                }
         
-        if playlist_videos.exists():
-            video_categories[f'Playlist: {playlist.title}'] = {
-                'videos': playlist_videos,
-                'view_all_url': reverse('playlist_videos', kwargs={'playlist_id': playlist.playlist_id}) 
-                if playlist.playlist_id not in ['LL', 'WL'] else 
-                reverse('video_category', kwargs={'category': 'liked' if playlist.playlist_id == 'LL' else 'saved'}),
-                'empty_message': f'No videos in playlist {playlist.title}',
-                'icon': 'fa-heart' if playlist.playlist_id == 'LL' else 'fa-bookmark' if playlist.playlist_id == 'WL' else 'fa-list'
-            }
+        # Get videos by tag
+        tags_with_counts = Tag.objects.filter(user=request.user).annotate(
+            video_count=models.Count('tagged_videos')
+        ).order_by('-video_count')[:3]
+        
+        for tag in tags_with_counts:
+            tag_videos = Video.objects.filter(
+                user=request.user, 
+                video_tags__tag=tag
+            ).order_by('-published_at')[:12]
+            
+            if tag_videos.exists():
+                video_categories[f'Tagged: {tag.name}'] = {
+                    'videos': tag_videos,
+                    'view_all_url': reverse('tag_videos', kwargs={'tag_id': tag.id}),
+                    'empty_message': f'No videos tagged with {tag.name}',
+                    'icon': 'fa-tag'
+                }
+        
+        # Get videos from user playlists
+        for playlist in user_playlists:
+            if (playlist.playlist_id == 'LL' and 'Liked Videos' in video_categories) or \
+               (playlist.playlist_id == 'WL' and 'Saved Videos' in video_categories):
+                continue
+                
+            playlist_videos = Video.objects.filter(
+                user=request.user,
+                playlist_id=playlist.playlist_id
+            ).order_by('-published_at')[:12]
+            
+            if playlist_videos.exists():
+                video_categories[f'Playlist: {playlist.title}'] = {
+                    'videos': playlist_videos,
+                    'view_all_url': reverse('playlist_videos', kwargs={'playlist_id': playlist.playlist_id}),
+                    'empty_message': f'No videos in playlist {playlist.title}',
+                    'icon': 'fa-list'
+                }
     
     return render(request, 'videos/dashboard.html', {
         'video_categories': video_categories,
         'user_tags': user_tags,
         'user_playlists': user_playlists,
+        'search_query': query,
     })
 
 @login_required
@@ -266,29 +273,61 @@ def oauth_callback(request):
     return redirect('dashboard')
 
 # API Views
-class VideoViewSet(viewsets.ReadOnlyModelViewSet):
+class VideoViewSet(viewsets.ModelViewSet):
     """API viewset for listing and retrieving videos"""
+    serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         return Video.objects.filter(user=self.request.user).order_by('-published_at')
     
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return VideoDetailSerializer
-        return VideoListSerializer
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def add_tags(self, request, pk=None):
+        video = self.get_object()
+        tag_ids = request.data.get('tag_ids', [])
+        
+        # Create new tags if they don't exist
+        for tag_name in request.data.get('new_tags', []):
+            tag, created = Tag.objects.get_or_create(
+                name=tag_name,
+                user=request.user
+            )
+            tag_ids.append(tag.id)
+        
+        # Add tags to video
+        video.tags.add(*tag_ids)
+        return Response(self.get_serializer(video).data)
+
+    @action(detail=True, methods=['post'])
+    def remove_tags(self, request, pk=None):
+        video = self.get_object()
+        tag_ids = request.data.get('tag_ids', [])
+        video.tags.remove(*tag_ids)
+        return Response(self.get_serializer(video).data)
+
+    @action(detail=False, methods=['get'])
+    def by_tag(self, request):
+        tag_id = request.query_params.get('tag_id')
+        if not tag_id:
+            return Response(
+                {'error': 'tag_id parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tag = get_object_or_404(Tag, id=tag_id, user=request.user)
+        videos = self.get_queryset().filter(tags=tag)
+        return Response(self.get_serializer(videos, many=True).data)
 
 class TagViewSet(viewsets.ModelViewSet):
     """API viewset for managing tags"""
+    serializer_class = TagSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         return Tag.objects.filter(user=self.request.user).order_by('name')
-    
-    def get_serializer_class(self):
-        if self.action in ['create', 'update']:
-            return TagCreateSerializer
-        return TagSerializer
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

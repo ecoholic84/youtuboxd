@@ -3,122 +3,175 @@
 {% block title %}Dashboard | YouTuBoxd{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-8">
-        <h1 class="mb-3">Your YouTube Videos</h1>
-        <p class="text-muted">
-            Videos will automatically sync when you refresh the page. 
-            <a href="{% url 'dashboard' %}?sync=true" class="btn btn-sm btn-outline-danger me-2">
-                <i class="fas fa-sync-alt me-1"></i>Sync All Videos
+<div class="dashboard-container">
+    <!-- Search Bar -->
+    <div class="search-container">
+        <form method="get" action="{% url 'dashboard' %}" class="search-form">
+            <div class="search-input-wrapper">
+                <input type="text" 
+                       name="q" 
+                       value="{{ search_query }}" 
+                       placeholder="Search videos or use tag: to search tags..." 
+                       class="search-input">
+                <button type="submit" class="search-button">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            {% if search_query %}
+            <a href="{% url 'dashboard' %}" class="clear-search">
+                <i class="fas fa-times"></i> Clear Search
             </a>
-            <button id="syncLikedBtn" class="btn btn-sm btn-outline-danger me-2">
-                <i class="fas fa-heart me-1"></i>Sync Liked Videos
-            </button>
-            <button id="syncSavedBtn" class="btn btn-sm btn-outline-danger">
-                <i class="fas fa-bookmark me-1"></i>Sync Saved Videos
-            </button>
-        </p>
+            {% endif %}
+        </form>
     </div>
-    <div class="col-md-4 text-md-end">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTagModal">
-            <i class="fas fa-tag me-1"></i> Create New Tag
-        </button>
+
+    <!-- Video Categories -->
+    {% for category, data in video_categories.items %}
+    <div class="category-section">
+        <div class="category-header">
+            <h2>
+                <i class="fas {{ data.icon }}"></i>
+                {{ category }}
+            </h2>
+            {% if data.view_all_url %}
+            <a href="{{ data.view_all_url }}" class="view-all">View All</a>
+            {% endif %}
+        </div>
+
+        {% if data.videos %}
+        <div class="video-grid">
+            {% for video in data.videos %}
+            {% include 'videos/components/video_card.html' with video=video %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-message">{{ data.empty_message }}</p>
+        {% endif %}
     </div>
+    {% endfor %}
 </div>
 
-{% for category_name, category_data in video_categories.items %}
-<div class="category-section mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h3 mb-0">
-            <i class="fas {{ category_data.icon }} me-2"></i>{{ category_name }}
-        </h2>
-        <a href="{{ category_data.view_all_url }}" class="btn btn-sm btn-outline-light">
-            View All <i class="fas fa-arrow-right ms-1"></i>
-        </a>
-    </div>
+<style>
+.dashboard-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.search-container {
+    margin-bottom: 30px;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.search-input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 20px;
+    padding-right: 50px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+}
+
+.search-button {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.search-button:hover {
+    color: #0066cc;
+}
+
+.clear-search {
+    color: #666;
+    text-decoration: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.clear-search:hover {
+    color: #dc3545;
+}
+
+.category-section {
+    margin-bottom: 40px;
+}
+
+.category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.category-header h2 {
+    font-size: 20px;
+    color: #000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.view-all {
+    color: #0066cc;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.view-all:hover {
+    text-decoration: underline;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.empty-message {
+    color: #666;
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .search-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
     
-    {% if category_data.videos %}
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
-        {% for video in category_data.videos|slice:":4" %}
-        <div class="col">
-            <div class="card h-100">
-                <div class="video-thumbnail">
-                    <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" class="card-img-top">
-                    <div class="video-overlay">
-                        <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="btn btn-danger">
-                            <i class="fab fa-youtube me-1"></i> Watch
-                        </a>
-                    </div>
-                    <div class="video-status-badges" style="position: absolute; top: 10px; right: 10px;">
-                        {% if video.is_liked %}
-                        <span class="badge bg-danger" title="Liked Video"><i class="fas fa-heart"></i></span>
-                        {% endif %}
-                        {% if video.is_saved %}
-                        <span class="badge bg-primary" title="Saved Video"><i class="fas fa-bookmark"></i></span>
-                        {% endif %}
-                        {% if video.playlist_id and video.playlist_id != 'LL' and video.playlist_id != 'WL' %}
-                        <span class="badge bg-success" title="In Playlist: {{ video.playlist_name }}"><i class="fas fa-list"></i></span>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ video.title|truncatechars:60 }}</h5>
-                    <p class="card-text text-muted small">{{ video.channel_title }}</p>
-                    
-                    <div class="tags mb-2">
-                        {% for video_tag in video.video_tags.all %}
-                        <span class="badge tag-badge">{{ video_tag.tag.name }}</span>
-                        {% endfor %}
-                    </div>
-                    
-                    {% if video.custom_description %}
-                    <p class="card-text small">{{ video.custom_description|truncatechars:80 }}</p>
-                    {% endif %}
-                    
-                    <div class="d-flex justify-content-between mt-3">
-                        <a href="{% url 'video_detail' video.id %}" class="btn btn-sm btn-outline-light">
-                            <i class="fas fa-edit me-1"></i> Edit
-                        </a>
-                        <small class="text-muted">
-                            {{ video.published_at|date:"M d, Y" }}
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="card bg-dark border-secondary">
-        <div class="card-body text-center py-4">
-            <p class="mb-0">{{ category_data.empty_message }}</p>
-        </div>
-    </div>
-    {% endif %}
-</div>
-{% endfor %}
-
-<!-- Create Tag Modal -->
-<div class="modal fade" id="createTagModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark text-light">
-            <div class="modal-header">
-                <h5 class="modal-title">Create New Tag</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="tagName" class="form-label">Tag Name</label>
-                    <input type="text" class="form-control bg-secondary text-light" id="tagName" placeholder="Enter tag name">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveTagBtn">Create Tag</button>
-            </div>
-        </div>
-    </div>
-</div>
+    .clear-search {
+        align-self: flex-end;
+    }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}

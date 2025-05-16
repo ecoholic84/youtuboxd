@@ -1,0 +1,244 @@
+{% load static %}
+
+<div class="video-card">
+    <div class="video-thumbnail">
+        <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" class="thumbnail-img">
+        <div class="video-overlay">
+            <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="watch-button">
+                <i class="fab fa-youtube"></i> Watch
+            </a>
+        </div>
+        <div class="video-status-badges">
+            {% if video.is_liked %}
+            <span class="status-badge liked" title="Liked Video">
+                <i class="fas fa-heart"></i>
+            </span>
+            {% endif %}
+            {% if video.is_saved %}
+            <span class="status-badge saved" title="Saved Video">
+                <i class="fas fa-bookmark"></i>
+            </span>
+            {% endif %}
+            {% if video.playlist_id and video.playlist_id != 'LL' and video.playlist_id != 'WL' %}
+            <span class="status-badge playlist" title="In Playlist: {{ video.playlist_name }}">
+                <i class="fas fa-list"></i>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="video-info">
+        <h3 class="video-title">{{ video.title|truncatechars:60 }}</h3>
+        <p class="channel-name">{{ video.channel_title }}</p>
+        
+        <div class="tags">
+            {% for video_tag in video.video_tags.all %}
+            <a href="{% url 'tag_videos' video_tag.tag.id %}" class="tag">
+                {{ video_tag.tag.name }}
+            </a>
+            {% endfor %}
+        </div>
+        
+        {% if video.custom_description %}
+        <p class="description">{{ video.custom_description|truncatechars:80 }}</p>
+        {% endif %}
+        
+        <div class="video-footer">
+            <a href="{% url 'video_detail' video.id %}" class="edit-button">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <span class="publish-date">{{ video.published_at|date:"M d, Y" }}</span>
+        </div>
+    </div>
+</div>
+
+<style>
+.video-card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.video-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.video-thumbnail {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+    background: #000;
+}
+
+.thumbnail-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.video-card:hover .video-overlay {
+    opacity: 1;
+}
+
+.watch-button {
+    background: #ff0000;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    transition: background 0.2s ease;
+}
+
+.watch-button:hover {
+    background: #cc0000;
+    color: #fff;
+}
+
+.video-status-badges {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 5px;
+}
+
+.status-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+}
+
+.status-badge.liked {
+    background: #ff0000;
+}
+
+.status-badge.saved {
+    background: #0066cc;
+}
+
+.status-badge.playlist {
+    background: #28a745;
+}
+
+.video-info {
+    padding: 16px;
+}
+
+.video-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #000;
+    line-height: 1.4;
+}
+
+.channel-name {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 12px 0;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.tag {
+    background: #f0f2f5;
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.tag:hover {
+    background: #e4e6e9;
+    color: #000;
+}
+
+.description {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 12px 0;
+    line-height: 1.4;
+}
+
+.video-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}
+
+.edit-button {
+    color: #0066cc;
+    text-decoration: none;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.edit-button:hover {
+    color: #004c99;
+}
+
+.publish-date {
+    font-size: 12px;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .video-card {
+        max-width: 100%;
+    }
+    
+    .video-title {
+        font-size: 15px;
+    }
+    
+    .tags {
+        gap: 4px;
+    }
+    
+    .tag {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+}
+</style> 

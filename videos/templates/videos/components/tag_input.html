@@ -1,0 +1,232 @@
+{% load static %}
+
+<div class="tag-input-container" data-video-id="{{ video.id }}">
+    <div class="tag-input-wrapper">
+        <input type="text" 
+               class="tag-input" 
+               placeholder="Add tags..." 
+               data-video-id="{{ video.id }}"
+               autocomplete="off">
+        <div class="tag-suggestions"></div>
+    </div>
+    <div class="video-tags">
+        {% for tag in video.tags.all %}
+        <span class="tag" data-tag-id="{{ tag.id }}">
+            {{ tag.name }}
+            <button class="remove-tag" data-tag-id="{{ tag.id }}">&times;</button>
+        </span>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.tag-input-container {
+    margin: 10px 0;
+}
+
+.tag-input-wrapper {
+    position: relative;
+}
+
+.tag-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.tag-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.tag-suggestion {
+    padding: 8px;
+    cursor: pointer;
+}
+
+.tag-suggestion:hover {
+    background: #f5f5f5;
+}
+
+.video-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 16px;
+    font-size: 12px;
+    color: #495057;
+}
+
+.remove-tag {
+    background: none;
+    border: none;
+    color: #6c757d;
+    margin-left: 4px;
+    padding: 0 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.remove-tag:hover {
+    color: #dc3545;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tagInputs = document.querySelectorAll('.tag-input');
+    
+    tagInputs.forEach(input => {
+        let timeout = null;
+        const videoId = input.dataset.videoId;
+        const container = input.closest('.tag-input-container');
+        const suggestionsDiv = container.querySelector('.tag-suggestions');
+        
+        // Handle input for tag suggestions
+        input.addEventListener('input', function() {
+            clearTimeout(timeout);
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            timeout = setTimeout(() => {
+                fetch(`/api/tags/?search=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(tags => {
+                        suggestionsDiv.innerHTML = '';
+                        tags.forEach(tag => {
+                            const div = document.createElement('div');
+                            div.className = 'tag-suggestion';
+                            div.textContent = tag.name;
+                            div.addEventListener('click', () => {
+                                addTagToVideo(videoId, tag.id);
+                                input.value = '';
+                                suggestionsDiv.style.display = 'none';
+                            });
+                            suggestionsDiv.appendChild(div);
+                        });
+                        suggestionsDiv.style.display = tags.length ? 'block' : 'none';
+                    });
+            }, 300);
+        });
+        
+        // Handle tag creation on Enter
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                e.preventDefault();
+                const tagName = this.value.trim();
+                
+                fetch('/api/tags/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ name: tagName })
+                })
+                .then(response => response.json())
+                .then(tag => {
+                    addTagToVideo(videoId, tag.id);
+                    this.value = '';
+                    suggestionsDiv.style.display = 'none';
+                });
+            }
+        });
+        
+        // Close suggestions when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!container.contains(e.target)) {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+    });
+    
+    // Handle tag removal
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-tag')) {
+            const tagId = e.target.dataset.tagId;
+            const videoId = e.target.closest('.tag-input-container').dataset.videoId;
+            removeTagFromVideo(videoId, tagId);
+        }
+    });
+});
+
+function addTagToVideo(videoId, tagId) {
+    fetch(`/api/videos/${videoId}/add_tags/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ tag_ids: [tagId] })
+    })
+    .then(response => response.json())
+    .then(video => {
+        updateVideoTags(videoId, video.tags);
+    });
+}
+
+function removeTagFromVideo(videoId, tagId) {
+    fetch(`/api/videos/${videoId}/remove_tags/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ tag_ids: [tagId] })
+    })
+    .then(response => response.json())
+    .then(video => {
+        updateVideoTags(videoId, video.tags);
+    });
+}
+
+function updateVideoTags(videoId, tags) {
+    const container = document.querySelector(`.tag-input-container[data-video-id="${videoId}"]`);
+    const tagsDiv = container.querySelector('.video-tags');
+    
+    tagsDiv.innerHTML = tags.map(tag => `
+        <span class="tag" data-tag-id="${tag.id}">
+            ${tag.name}
+            <button class="remove-tag" data-tag-id="${tag.id}">&times;</button>
+        </span>
+    `).join('');
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script> 

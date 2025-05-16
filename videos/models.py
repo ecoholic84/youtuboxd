@@ -63,6 +63,9 @@ class Video(models.Model):
     playlist_id = models.CharField(max_length=100, blank=True, null=True)
     playlist_name = models.CharField(max_length=255, blank=True, null=True)
     
+    # Tags
+    tags = models.ManyToManyField('Tag', related_name='videos', blank=True)
+    
     class Meta:
         unique_together = ('user', 'video_id')
         ordering = ['-published_at']
@@ -73,12 +76,13 @@ class Video(models.Model):
 
 class Tag(models.Model):
     """Store tags for videos"""
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=50, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tags')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('name', 'user')
+        unique_together = ('name', 'user')  # Each user can have their own tags
+        ordering = ['name']
 
     def __str__(self):
         return self.name

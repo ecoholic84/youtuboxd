@@ -13,7 +13,8 @@ class UserSerializer(serializers.ModelSerializer):
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ('id', 'name')
+        fields = ['id', 'name']
+        read_only_fields = ['id']
 
 
 class VideoTagSerializer(serializers.ModelSerializer):
@@ -22,6 +23,40 @@ class VideoTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoTag
         fields = ('id', 'tag')
+
+
+class VideoSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True, read_only=True)
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(),
+        many=True,
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = Video
+        fields = ['id', 'youtube_id', 'title', 'description', 'thumbnail_url', 
+                 'playlist_id', 'playlist_name', 'tags', 'tag_ids', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'youtube_id', 'thumbnail_url', 'playlist_id', 
+                           'playlist_name', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        tag_ids = validated_data.pop('tag_ids', [])
+        video = Video.objects.create(**validated_data)
+        if tag_ids:
+            video.tags.set(tag_ids)
+        return video
+
+    def update(self, instance, validated_data):
+        tag_ids = validated_data.pop('tag_ids', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        if tag_ids is not None:
+            instance.tags.set(tag_ids)
+        return instance
 
 
 class VideoDetailSerializer(serializers.ModelSerializer):
