@@ -12,6 +12,7 @@ urlpatterns = [
     # Web views
     path('', views.dashboard_view, name='dashboard'),
     path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
     path('oauth/callback/', views.oauth_callback, name='oauth_callback'),
     path('video/<int:video_id>/', views.video_detail_view, name='video_detail'),
     
@@ -22,8 +23,10 @@ urlpatterns = [
     
     # API endpoints
     path('api/', include(router.urls)),
-    path('api/tags/add/', views.add_tag_to_video, name='add_tag_to_video'),
-    path('api/tags/remove/', views.remove_tag_from_video, name='remove_tag_from_video'),
-    path('api/videos/<int:video_id>/update/', views.update_video_description, name='update_video_description'),
-    path('api/sync/', views.sync_videos, name='sync_videos'),
+    path('api/videos/<int:video_id>/description/', views.update_video_description, name='update_video_description'),
+    path('api/videos/add-tag/', views.add_tag_to_video, name='add_tag_to_video'),
+    path('api/videos/remove-tag/', views.remove_tag_from_video, name='remove_tag_from_video'),
+    path('api/sync-videos/', views.sync_videos, name='sync_videos'),
+    path('api/save-to-drive/', views.save_to_drive, name='save_to_drive'),
+    path('api/load-from-drive/', views.load_from_drive, name='load_from_drive'),
 ] 

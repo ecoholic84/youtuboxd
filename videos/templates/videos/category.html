@@ -5,10 +5,18 @@
 {% block content %}
 <div class="category-container">
     <div class="category-header">
-        <h1>
-            <i class="fas {{ icon }}"></i>
-            {{ title }}
-        </h1>
+        <h1><i class="fas {{ icon }} me-2"></i>{{ title }}</h1>
+        <div class="header-actions">
+            {% if category == 'liked' %}
+            <button id="syncLikedBtn" class="btn-sync">
+                <i class="fas fa-sync-alt me-1"></i>Sync Liked Videos
+            </button>
+            {% elif category == 'saved' %}
+            <button id="syncSavedBtn" class="btn-sync">
+                <i class="fas fa-sync-alt me-1"></i>Sync Saved Videos
+            </button>
+            {% endif %}
+        </div>
     </div>
 
     {% if videos %}
@@ -19,7 +27,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <i class="fas {{ icon }} fa-3x"></i>
+        <i class="fas {{ icon }} empty-icon"></i>
         <p>No videos found in this category</p>
     </div>
     {% endif %}
@@ -33,53 +41,138 @@
 }
 
 .category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 30px;
 }
 
 .category-header h1 {
     font-size: 24px;
-    color: #000;
+    color: #fff;
+    margin: 0;
     display: flex;
     align-items: center;
-    gap: 12px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-sync {
+    background: #323232;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.btn-sync:hover {
+    background: #444;
 }
 
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
 }
 
 .empty-state {
     text-align: center;
-    padding: 40px;
-    background: #f8f9fa;
-    border-radius: 12px;
-    color: #666;
+    padding: 50px 0;
+    color: #aaa;
 }
 
-.empty-state i {
-    margin-bottom: 16px;
-    color: #adb5bd;
-}
-
-.empty-state p {
-    font-size: 16px;
-    margin: 0;
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.5;
 }
 
 @media (max-width: 768px) {
-    .category-container {
-        padding: 15px;
-    }
-    
-    .category-header h1 {
-        font-size: 20px;
+    .category-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
     }
     
     .video-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     }
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Sync Liked Videos
+        $('#syncLikedBtn').click(function() {
+            // Disable button and show loading state
+            var $btn = $(this);
+            var originalText = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Syncing...');
+            
+            $.ajax({
+                url: '{% url "sync_videos" %}',
+                type: 'POST',
+                data: JSON.stringify({ sync_type: 'liked' }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Show success message
+                    alert(response.message || 'Liked videos synced successfully!');
+                    location.reload();
+                },
+                error: function(error) {
+                    // Show error message
+                    var errorMsg = error.responseJSON ? error.responseJSON.message : 'Failed to sync liked videos';
+                    alert('Error: ' + errorMsg);
+                    
+                    // Reset button state
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            });
+        });
+        
+        // Sync Saved Videos
+        $('#syncSavedBtn').click(function() {
+            // Disable button and show loading state
+            var $btn = $(this);
+            var originalText = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Syncing...');
+            
+            $.ajax({
+                url: '{% url "sync_videos" %}',
+                type: 'POST',
+                data: JSON.stringify({ sync_type: 'saved' }),
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    // Show success message
+                    alert(response.message || 'Saved videos synced successfully!');
+                    location.reload();
+                },
+                error: function(error) {
+                    // Show error message
+                    var errorMsg = error.responseJSON ? error.responseJSON.message : 'Failed to sync saved videos';
+                    alert('Error: ' + errorMsg);
+                    
+                    // Reset button state
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            });
+        });
+    });
+</script>
 {% endblock %} 

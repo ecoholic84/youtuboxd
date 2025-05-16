@@ -1,244 +1,643 @@
 {% load static %}
 
-<div class="video-card">
-    <div class="video-thumbnail">
-        <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" class="thumbnail-img">
-        <div class="video-overlay">
-            <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="watch-button">
-                <i class="fab fa-youtube"></i> Watch
-            </a>
-        </div>
+<div class="yt-video-card" data-video-id="{{ video.id }}">
+    <div class="video-thumbnail-container">
+        <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="video-thumbnail">
+            <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="lazy">
+            <span class="video-duration">{{ video.duration|default:"--:--" }}</span>
+        </a>
         <div class="video-status-badges">
             {% if video.is_liked %}
-            <span class="status-badge liked" title="Liked Video">
-                <i class="fas fa-heart"></i>
-            </span>
+            <span class="badge badge-liked" title="Liked Video"><i class="fas fa-heart"></i></span>
             {% endif %}
             {% if video.is_saved %}
-            <span class="status-badge saved" title="Saved Video">
-                <i class="fas fa-bookmark"></i>
-            </span>
+            <span class="badge badge-saved" title="Saved Video"><i class="fas fa-bookmark"></i></span>
             {% endif %}
             {% if video.playlist_id and video.playlist_id != 'LL' and video.playlist_id != 'WL' %}
-            <span class="status-badge playlist" title="In Playlist: {{ video.playlist_name }}">
-                <i class="fas fa-list"></i>
-            </span>
+            <span class="badge badge-playlist" title="In Playlist: {{ video.playlist_name }}"><i class="fas fa-list"></i></span>
             {% endif %}
         </div>
     </div>
     
     <div class="video-info">
-        <h3 class="video-title">{{ video.title|truncatechars:60 }}</h3>
-        <p class="channel-name">{{ video.channel_title }}</p>
+        <h3 class="video-title" title="{{ video.title }}">
+            {{ video.title }}
+        </h3>
         
-        <div class="tags">
-            {% for video_tag in video.video_tags.all %}
-            <a href="{% url 'tag_videos' video_tag.tag.id %}" class="tag">
-                {{ video_tag.tag.name }}
-            </a>
-            {% endfor %}
+        <div class="video-meta">
+            <span class="channel-name">{{ video.channel_title }}</span>
+            <span class="publish-date">{{ video.published_at|date:"M d, Y" }}</span>
         </div>
         
-        {% if video.custom_description %}
-        <p class="description">{{ video.custom_description|truncatechars:80 }}</p>
-        {% endif %}
+        <div class="video-description-container">
+            <div class="video-description-display">
+                <p>{{ video.custom_description|default:video.description|truncatechars:120 }}</p>
+                <button class="btn-edit-description" data-action="edit-description">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </div>
+            <div class="video-description-edit" style="display: none;">
+                <textarea class="description-textarea">{{ video.custom_description|default:video.description }}</textarea>
+                <div class="description-actions">
+                    <button class="btn-save-description" data-action="save-description">
+                        <i class="fas fa-save"></i> Save
+                    </button>
+                    <button class="btn-cancel-description" data-action="cancel-description">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
         
-        <div class="video-footer">
-            <a href="{% url 'video_detail' video.id %}" class="edit-button">
-                <i class="fas fa-edit"></i> Edit
-            </a>
-            <span class="publish-date">{{ video.published_at|date:"M d, Y" }}</span>
+        <div class="video-tags-container">
+            <div class="video-tags">
+                {% for tag in video.tags.all %}
+                <span class="tag" data-tag-id="{{ tag.id }}">
+                    {{ tag.name }}
+                    <button class="remove-tag" data-tag-id="{{ tag.id }}">×</button>
+                </span>
+                {% endfor %}
+            </div>
+            <div class="tags-controls">
+                <button class="btn-add-tag" data-action="add-tag">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <div class="tag-input-dropdown" style="display: none;">
+                    <input type="text" class="tag-input" placeholder="Add or create tag...">
+                    <div class="tag-suggestions"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-.video-card {
-    background: #fff;
-    border-radius: 12px;
+/* YouTube-inspired Dark Theme Video Card */
+.yt-video-card {
+    background: #212121;
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
 }
 
-.video-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+.yt-video-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.video-thumbnail-container {
+    position: relative;
+    width: 100%;
 }
 
 .video-thumbnail {
+    display: block;
     position: relative;
     width: 100%;
-    padding-top: 56.25%; /* 16:9 Aspect Ratio */
-    background: #000;
+    padding-top: 56.25%; /* 16:9 aspect ratio */
+    overflow: hidden;
 }
 
-.thumbnail-img {
+.video-thumbnail img {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.3s;
 }
 
-.video-overlay {
+.video-thumbnail:hover img {
+    transform: scale(1.05);
+}
+
+.video-duration {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-
-.video-card:hover .video-overlay {
-    opacity: 1;
-}
-
-.watch-button {
-    background: #ff0000;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.8);
     color: #fff;
-    padding: 8px 16px;
-    border-radius: 20px;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
     font-weight: 500;
-    transition: background 0.2s ease;
-}
-
-.watch-button:hover {
-    background: #cc0000;
-    color: #fff;
 }
 
 .video-status-badges {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 8px;
+    right: 8px;
     display: flex;
     gap: 5px;
 }
 
-.status-badge {
-    width: 28px;
-    height: 28px;
+.badge {
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
-    font-size: 14px;
+    font-size: 12px;
 }
 
-.status-badge.liked {
-    background: #ff0000;
+.badge-liked {
+    background: #f00;
 }
 
-.status-badge.saved {
-    background: #0066cc;
+.badge-saved {
+    background: #065fd4;
 }
 
-.status-badge.playlist {
-    background: #28a745;
+.badge-playlist {
+    background: #2ecc71;
 }
 
 .video-info {
-    padding: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 .video-title {
     font-size: 16px;
-    font-weight: 600;
-    margin: 0 0 8px 0;
-    color: #000;
+    font-weight: 500;
+    margin: 0 0 6px;
     line-height: 1.4;
+    height: 2.8em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    color: #fff;
+}
+
+.video-meta {
+    display: flex;
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .channel-name {
-    font-size: 14px;
-    color: #666;
-    margin: 0 0 12px 0;
+    color: #aaa;
 }
 
-.tags {
+.video-description-container {
+    margin-bottom: 10px;
+    flex-grow: 1;
+}
+
+.video-description-display {
+    position: relative;
+    padding-right: 30px;
+}
+
+.video-description-display p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #aaa;
+    margin: 0;
+    min-height: 20px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.btn-edit-description {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: none;
+    border: none;
+    color: #aaa;
+    padding: 0;
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.btn-edit-description:hover {
+    opacity: 1;
+    color: #fff;
+}
+
+.video-description-edit {
+    margin-top: 5px;
+}
+
+.description-textarea {
+    width: 100%;
+    min-height: 80px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    padding: 8px;
+    resize: vertical;
+    font-size: 13px;
+}
+
+.description-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: flex-end;
+}
+
+.btn-save-description,
+.btn-cancel-description {
+    background: #333;
+    border: none;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-save-description:hover {
+    background: #065fd4;
+}
+
+.btn-cancel-description:hover {
+    background: #444;
+}
+
+.video-tags-container {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.video-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 12px;
+    flex-grow: 1;
 }
 
 .tag {
-    background: #f0f2f5;
-    color: #000;
-    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    background: #323232;
+    color: #fff;
+    padding: 3px 8px;
     border-radius: 12px;
     font-size: 12px;
-    text-decoration: none;
-    transition: background 0.2s ease;
+    border: 1px solid #444;
 }
 
-.tag:hover {
-    background: #e4e6e9;
-    color: #000;
-}
-
-.description {
-    font-size: 13px;
-    color: #666;
-    margin: 0 0 12px 0;
-    line-height: 1.4;
-}
-
-.video-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #eee;
-}
-
-.edit-button {
-    color: #0066cc;
-    text-decoration: none;
+.remove-tag {
+    background: none;
+    border: none;
+    color: #ccc;
+    margin-left: 5px;
+    cursor: pointer;
     font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.remove-tag:hover {
+    color: #ff0000;
+}
+
+.tags-controls {
+    margin-left: 5px;
+    position: relative;
+}
+
+.btn-add-tag {
+    background: #323232;
+    border: 1px solid #444;
+    color: #aaa;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 6px;
-}
-
-.edit-button:hover {
-    color: #004c99;
-}
-
-.publish-date {
+    justify-content: center;
+    cursor: pointer;
     font-size: 12px;
-    color: #666;
 }
 
-@media (max-width: 768px) {
-    .video-card {
-        max-width: 100%;
-    }
-    
+.btn-add-tag:hover {
+    color: #fff;
+    background: #444;
+}
+
+.tag-input-dropdown {
+    position: absolute;
+    right: 0;
+    bottom: 30px;
+    width: 200px;
+    background: #212121;
+    border: 1px solid #444;
+    border-radius: 5px;
+    z-index: 10;
+    padding: 8px;
+}
+
+.tag-input {
+    width: 100%;
+    padding: 5px 8px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 12px;
+}
+
+.tag-suggestions {
+    margin-top: 5px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.tag-suggestion {
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+.tag-suggestion:hover {
+    background: #444;
+}
+
+@media (max-width: 576px) {
     .video-title {
-        font-size: 15px;
-    }
-    
-    .tags {
-        gap: 4px;
-    }
-    
-    .tag {
-        font-size: 11px;
-        padding: 3px 8px;
+        font-size: 14px;
     }
 }
-</style> 
+</style>
+
+<script>
+// Initialization when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all video cards
+    document.querySelectorAll('.yt-video-card').forEach(initVideoCard);
+});
+
+// Initialize a single video card with all event handlers
+function initVideoCard(card) {
+    const videoId = card.getAttribute('data-video-id');
+    
+    // Edit description toggle
+    card.querySelector('.btn-edit-description').addEventListener('click', function() {
+        card.querySelector('.video-description-display').style.display = 'none';
+        card.querySelector('.video-description-edit').style.display = 'block';
+    });
+    
+    // Cancel description edit
+    card.querySelector('.btn-cancel-description').addEventListener('click', function() {
+        card.querySelector('.video-description-display').style.display = 'block';
+        card.querySelector('.video-description-edit').style.display = 'none';
+    });
+    
+    // Save description
+    card.querySelector('.btn-save-description').addEventListener('click', function() {
+        const textarea = card.querySelector('.description-textarea');
+        const newDescription = textarea.value;
+        saveVideoDescription(videoId, newDescription, card);
+    });
+    
+    // Toggle tag input dropdown
+    card.querySelector('.btn-add-tag').addEventListener('click', function() {
+        const dropdown = card.querySelector('.tag-input-dropdown');
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        if (dropdown.style.display === 'block') {
+            dropdown.querySelector('.tag-input').focus();
+        }
+    });
+    
+    // Handle tag input
+    const tagInput = card.querySelector('.tag-input');
+    let timeout = null;
+    
+    tagInput.addEventListener('input', function() {
+        clearTimeout(timeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            card.querySelector('.tag-suggestions').innerHTML = '';
+            return;
+        }
+        
+        timeout = setTimeout(() => {
+            fetchTagSuggestions(query, card);
+        }, 300);
+    });
+    
+    // Handle tag input keypress (for creating new tags)
+    tagInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && this.value.trim()) {
+            e.preventDefault();
+            createAndAddTag(videoId, this.value.trim(), card);
+        }
+    });
+    
+    // Handle tag removal
+    card.querySelectorAll('.remove-tag').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tagId = this.getAttribute('data-tag-id');
+            removeTagFromVideo(videoId, tagId, card);
+        });
+    });
+    
+    // Close tag dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!card.contains(e.target)) {
+            card.querySelector('.tag-input-dropdown').style.display = 'none';
+        }
+    });
+}
+
+// Save video description to the server
+function saveVideoDescription(videoId, description, card) {
+    fetch(`/api/videos/${videoId}/description/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ custom_description: description })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to save description');
+        return response.json();
+    })
+    .then(data => {
+        // Update the display
+        card.querySelector('.video-description-display p').textContent = description;
+        card.querySelector('.video-description-display').style.display = 'block';
+        card.querySelector('.video-description-edit').style.display = 'none';
+    })
+    .catch(error => {
+        console.error('Error saving description:', error);
+        alert('Failed to save description: ' + error.message);
+    });
+}
+
+// Fetch tag suggestions based on input
+function fetchTagSuggestions(query, card) {
+    fetch(`/api/tags/?search=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(tags => {
+            const suggestionsDiv = card.querySelector('.tag-suggestions');
+            suggestionsDiv.innerHTML = '';
+            
+            // Add "Create new tag" option if no exact match
+            const exactMatch = tags.some(tag => tag.name.toLowerCase() === query.toLowerCase());
+            if (!exactMatch && query.length > 0) {
+                const createDiv = document.createElement('div');
+                createDiv.className = 'tag-suggestion';
+                createDiv.innerHTML = `<i class="fas fa-plus-circle me-1"></i> Create "${query}"`;
+                createDiv.addEventListener('click', () => {
+                    const videoId = card.getAttribute('data-video-id');
+                    createAndAddTag(videoId, query, card);
+                });
+                suggestionsDiv.appendChild(createDiv);
+            }
+            
+            // Add existing tags
+            tags.forEach(tag => {
+                const div = document.createElement('div');
+                div.className = 'tag-suggestion';
+                div.textContent = tag.name;
+                div.addEventListener('click', () => {
+                    const videoId = card.getAttribute('data-video-id');
+                    addTagToVideo(videoId, tag.id, card);
+                });
+                suggestionsDiv.appendChild(div);
+            });
+        });
+}
+
+// Create a new tag and add it to the video
+function createAndAddTag(videoId, tagName, card) {
+    fetch('/api/tags/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ name: tagName })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to create tag');
+        return response.json();
+    })
+    .then(tag => {
+        addTagToVideo(videoId, tag.id, card);
+    })
+    .catch(error => {
+        console.error('Error creating tag:', error);
+        alert('Failed to create tag: ' + error.message);
+    });
+}
+
+// Add an existing tag to the video
+function addTagToVideo(videoId, tagId, card) {
+    fetch(`/api/videos/${videoId}/add_tags/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ tag_ids: [tagId] })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to add tag to video');
+        return response.json();
+    })
+    .then(data => {
+        // Reset input and hide dropdown
+        card.querySelector('.tag-input').value = '';
+        card.querySelector('.tag-input-dropdown').style.display = 'none';
+        
+        // Update displayed tags
+        updateVideoTags(card, data.tags);
+    })
+    .catch(error => {
+        console.error('Error adding tag:', error);
+        alert('Failed to add tag: ' + error.message);
+    });
+}
+
+// Remove a tag from the video
+function removeTagFromVideo(videoId, tagId, card) {
+    fetch(`/api/videos/${videoId}/remove_tags/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ tag_ids: [tagId] })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to remove tag from video');
+        return response.json();
+    })
+    .then(data => {
+        // Update displayed tags
+        updateVideoTags(card, data.tags);
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        alert('Failed to remove tag: ' + error.message);
+    });
+}
+
+// Update the tags display in the card
+function updateVideoTags(card, tags) {
+    const tagsContainer = card.querySelector('.video-tags');
+    tagsContainer.innerHTML = '';
+    
+    tags.forEach(tag => {
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'tag';
+        tagSpan.setAttribute('data-tag-id', tag.id);
+        tagSpan.innerHTML = `
+            ${tag.name}
+            <button class="remove-tag" data-tag-id="${tag.id}">×</button>
+        `;
+        
+        // Add event listener to the remove button
+        tagSpan.querySelector('.remove-tag').addEventListener('click', function() {
+            const videoId = card.getAttribute('data-video-id');
+            removeTagFromVideo(videoId, tag.id, card);
+        });
+        
+        tagsContainer.appendChild(tagSpan);
+    });
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script> 
